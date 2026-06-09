@@ -802,3 +802,68 @@ body {
 .toast-error i {
   color: var(--danger);
 }
+
+/* OCR Styles */
+.ocr-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+  gap: 8px;
+}
+
+.ocr-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.ocr-text-percent {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-family-display);
+  margin-top: 4px;
+}
+
+.ocr-overlay span {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.ocr-textarea {
+  width: 100%;
+  height: 180px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  font-family: var(--font-family-sans);
+  margin-bottom: 20px;
+}
+
+.ocr-textarea:focus {
+  border-color: var(--primary-light);
+}
+
+.badge-ocr {
+  background: rgba(236, 72, 153, 0.15);
+  color: var(--accent-color);
+  border: 1px solid rgba(236, 72, 153, 0.2);
+}

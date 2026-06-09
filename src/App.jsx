@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
+import { createWorker } from 'tesseract.js';
 
 // ==========================================
 // Helper Functions for Canvas Processing
@@ -52,6 +53,13 @@ export default function App() {
   const [pageOrientation, setPageOrientation] = useState('auto');
   const [pageMargin, setPageMargin] = useState(0);
   const [imageQuality, setImageQuality] = useState(0.8);
+  
+  // OCR States
+  const [ocrLanguage, setOcrLanguage] = useState('chi_tra+eng');
+  const [ocrActiveId, setOcrActiveId] = useState(null);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrStatusText, setOcrStatusText] = useState('');
+  const [ocrResult, setOcrResult] = useState({ show: false, text: '', filename: '' });
   
   // Modals & UI States
   const [isDragOver, setIsDragOver] = useState(false);
@@ -232,6 +240,63 @@ export default function App() {
 
   const handleDragOver = (e) => {
     e.preventDefault();
+  };
+
+  // ==========================================
+  // Local OCR Text Recognition (Tesseract.js)
+  // ==========================================
+  const runOCR = async (imgObj) => {
+    if (ocrActiveId) {
+      showToast('已有其他照片在辨識中！', 'warning');
+      return;
+    }
+
+    setOcrActiveId(imgObj.id);
+    setOcrProgress(0);
+    setOcrStatusText('正在啟動辨識引擎...');
+
+    try {
+      // 1. Process image using high quality Canvas to ensure best OCR accuracy
+      const processed = await processImage(imgObj, 0.95);
+
+      // 2. Initialize Tesseract worker with selected language
+      const worker = await createWorker(ocrLanguage, 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            setOcrStatusText('正在辨識文字...');
+            setOcrProgress(Math.round(m.progress * 100));
+          } else {
+            setOcrStatusText('載入字型數據...');
+          }
+        }
+      });
+
+      // 3. Recognize text
+      const { data: { text } } = await worker.recognize(processed.dataUrl);
+      await worker.terminate();
+
+      setOcrActiveId(null);
+      setOcrProgress(0);
+      setOcrStatusText('');
+
+      if (!text || text.trim() === '') {
+        showToast('未能辨識出任何文字，請確認照片內容是否有清晰文字。', 'warning');
+      } else {
+        setOcrResult({
+          show: true,
+          text: text,
+          filename: imgObj.name
+        });
+        showToast('文字辨識完成！', 'success');
+      }
+
+    } catch (err) {
+      console.error('OCR 失敗:', err);
+      setOcrActiveId(null);
+      setOcrProgress(0);
+      setOcrStatusText('');
+      showToast('文字辨識失敗，請確認網路連線以進行初次語系下載，或重試。', 'error');
+    }
   };
 
   // ==========================================
@@ -489,7 +554,7 @@ export default function App() {
                 </button>
               </div>
             </div>
-            <p className="helper-text"><i class="fa-solid fa-arrows-alt"></i> 長按或拖曳照片可調整 PDF 排序</p>
+            <p className="helper-text"><i className="fa-solid fa-arrows-alt"></i> 長按或拖曳照片可調整 PDF 排序</p>
             
             <div className="preview-grid">
               {images.map((imgObj, index) => (
@@ -513,12 +578,32 @@ export default function App() {
                     style={{ transform: `rotate(${imgObj.rotation}deg)` }}
                   />
 
+                  {/* Card OCR Loader Mask */}
+                  {ocrActiveId === imgObj.id && (
+                    <div className="ocr-overlay">
+                      <div className="ocr-spinner"></div>
+                      <div className="ocr-text-percent">{ocrProgress}%</div>
+                      <span>{ocrStatusText}</span>
+                    </div>
+                  )}
+
                   {/* Thumbnail Actions */}
                   <div className="item-actions">
                     <button 
                       className="btn-action" 
+                      title="辨識照片中的文字"
+                      onClick={() => runOCR(imgObj)}
+                      disabled={ocrActiveId !== null}
+                      style={{ opacity: ocrActiveId !== null ? 0.5 : 1 }}
+                    >
+                      <i className="fa-solid fa-font"></i>
+                    </button>
+                    <button 
+                      className="btn-action" 
                       title="旋轉照片"
                       onClick={() => rotateImage(imgObj.id)}
+                      disabled={ocrActiveId !== null}
+                      style={{ opacity: ocrActiveId !== null ? 0.5 : 1 }}
                     >
                       <i className="fa-solid fa-rotate-right"></i>
                     </button>
@@ -526,6 +611,8 @@ export default function App() {
                       className="btn-action btn-delete" 
                       title="刪除照片"
                       onClick={() => deleteImage(imgObj.id)}
+                      disabled={ocrActiveId !== null}
+                      style={{ opacity: ocrActiveId !== null ? 0.5 : 1 }}
                     >
                       <i className="fa-solid fa-trash"></i>
                     </button>
@@ -597,6 +684,16 @@ export default function App() {
                   <option value="0.3">低 (最小檔案)</option>
                 </select>
               </div>
+
+              {/* OCR default language */}
+              <div className="setting-item full-width">
+                <label htmlFor="ocr-lang">文字辨識語言設定</label>
+                <select id="ocr-lang" value={ocrLanguage} onChange={(e) => setOcrLanguage(e.target.value)}>
+                  <option value="chi_tra+eng">繁體中文 + 英文 (建議，中英雙語混雜)</option>
+                  <option value="chi_tra">純繁體中文</option>
+                  <option value="eng">純英文 (English)</option>
+                </select>
+              </div>
             </div>
 
             {/* Submit Button */}
@@ -648,6 +745,55 @@ export default function App() {
               </button>
               <button onClick={() => setSuccess({ show: false, size: 0, pages: 0 })} className="btn btn-text">
                 返回修改
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OCR Result Modal */}
+      {ocrResult.show && (
+        <div className="modal">
+          <div className="modal-content glassmorphism card-modal">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="badge badge-ocr"><i className="fa-solid fa-font"></i> OCR</span> 辨識結果
+              </h3>
+              <button 
+                onClick={() => setOcrResult({ show: false, text: '', filename: '' })} 
+                className="btn-action" 
+                title="關閉"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '16px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              圖片來源: {ocrResult.filename}
+            </p>
+            
+            <textarea 
+              className="ocr-textarea" 
+              value={ocrResult.text}
+              readOnly
+            />
+            
+            <div className="modal-actions">
+              <button 
+                onClick={() => {
+                  navigator.clipboard.writeText(ocrResult.text);
+                  showToast('文字已複製到剪貼簿！', 'success');
+                }} 
+                className="btn btn-gradient btn-large"
+              >
+                <i className="fa-solid fa-copy"></i> 複製辨識文字
+              </button>
+              
+              <button 
+                onClick={() => setOcrResult({ show: false, text: '', filename: '' })} 
+                className="btn btn-secondary btn-large"
+              >
+                關閉
               </button>
             </div>
           </div>
