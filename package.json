@@ -1,0 +1,17 @@
+{
+  "name": "photo-to-pdf-converter",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "jspdf": "^2.5.1"
+  },
+  "devDependencies": {
+    "vite": "^5.2.0"
+  }
+}
