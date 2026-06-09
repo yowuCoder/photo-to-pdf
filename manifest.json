@@ -1,0 +1,24 @@
+{
+  "name": "照片轉 PDF 轉換器",
+  "short_name": "照片轉 PDF",
+  "description": "快速、安全且完全離線運作的照片轉 PDF 工具。支援多圖拖拉排序、旋轉、調整版面與壓縮，保護您的隱私。",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
