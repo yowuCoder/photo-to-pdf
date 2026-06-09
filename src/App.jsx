@@ -21,19 +21,22 @@ async function processImage(imgObj, quality) {
   const ctx = canvas.getContext('2d');
   const rotation = imgObj.rotation;
   
-  // Adjust canvas size depending on rotation
+  // Use naturalWidth and naturalHeight to prevent 0x0 canvas resolution on dynamic loads
+  const width = img.naturalWidth || img.width || 800;
+  const height = img.naturalHeight || img.height || 600;
+  
   if (rotation === 90 || rotation === 270) {
-    canvas.width = img.height;
-    canvas.height = img.width;
+    canvas.width = height;
+    canvas.height = width;
   } else {
-    canvas.width = img.width;
-    canvas.height = img.height;
+    canvas.width = width;
+    canvas.height = height;
   }
   
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.rotate((rotation * Math.PI) / 180);
-  ctx.drawImage(img, -img.width / 2, -img.height / 2);
+  ctx.drawImage(img, -width / 2, -height / 2);
   
   const dataUrl = canvas.toDataURL('image/jpeg', quality);
   return {
@@ -259,8 +262,9 @@ export default function App() {
       // 1. Process image using high quality Canvas to ensure best OCR accuracy
       const processed = await processImage(imgObj, 0.95);
 
-      // 2. Initialize Tesseract worker with selected language
+      // 2. Initialize Tesseract worker with selected language and high-accuracy "best" dataset
       const worker = await createWorker(ocrLanguage, 1, {
+        langPath: 'https://tessdata.projectnaptha.com/4.0.0_best/',
         logger: (m) => {
           if (m.status === 'recognizing text') {
             setOcrStatusText('正在辨識文字...');
